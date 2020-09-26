@@ -32,6 +32,33 @@ var isTouch = Modernizr.touch ? 1 : 0;
 var filter = "";
 var dirble_api_token = "";
 var dirble_stations = false;
+var volume;
+
+function down() {
+    volume = volume - 10;
+    if(volume < 0)
+      volume = 0;
+    socket.send("MPD_API_SET_VOLUME,"+volume);
+}
+
+function up() {
+    volume = volume + 10;
+    if(volume > 100)
+      volume = 100;
+    socket.send("MPD_API_SET_VOLUME,"+volume);
+}
+
+function normal() {
+    volume = 50;
+    socket.send("MPD_API_SET_VOLUME,"+volume);
+}
+
+function clickTitle() {
+    if(!$('#panel-heading').hasClass('queue'))
+        window.location ='#/';
+    else
+        window.location ='#/browse/0/';
+}
 
 var app = $.sammy(function() {
 
@@ -45,6 +72,9 @@ var app = $.sammy(function() {
         socket.send('MPD_API_GET_QUEUE,'+pagination);
 
         $('#panel-heading').text("Queue");
+        $('#panel-heading').addClass("queue");
+        $('#panel-heading').removeClass("browse");
+        $('#panel-heading').removeClass("search");
         $('#queue').addClass('active');
     }
 
@@ -83,6 +113,9 @@ var app = $.sammy(function() {
         }
 
         $('#panel-heading').text("Browse database: "+browsepath);
+        $('#panel-heading').addClass("browse");
+        $('#panel-heading').removeClass("queue");
+        $('#panel-heading').removeClass("search");
         var path_array = browsepath.split('/');
         var full_path = "";
         $.each(path_array, function(index, chunk) {
@@ -108,6 +141,9 @@ var app = $.sammy(function() {
         socket.send('MPD_API_SEARCH,' + searchstr);
 
         $('#panel-heading').text("Search: "+searchstr);
+        $('#panel-heading').addClass("search");
+        $('#panel-heading').removeClass("queue");
+        $('#panel-heading').removeClass("browse");
     });
 
     this.get(/\#\/dirble\/(\d+)\/(\d+)/, function() {
@@ -161,10 +197,8 @@ var app = $.sammy(function() {
 
 $(document).ready(function(){
     webSocketConnect();
+    $("#volume-icon").text(0);
     $("#volumeslider").slider(0);
-    $("#volumeslider").on('slider.newValue', function(evt,data){
-        socket.send("MPD_API_SET_VOLUME,"+data.val);
-    });
     $('#progressbar').slider(0);
     $("#progressbar").on('slider.newValue', function(evt,data){
         if(current_song && current_song.currentSongId >= 0) {
@@ -228,7 +262,7 @@ function webSocketConnect() {
                         $('#salamisandwich > tbody').append(
                             "<tr trackid=\"" + obj.data[song].id + "\"><td>" + (obj.data[song].pos + 1) + "</td>" +
                                 "<td>" + obj.data[song].artist + "<br /><span>" + obj.data[song].album  + "</span></td>" +
-                                "<td>" + obj.data[song].title  + "</td>" +
+                                "<td>" + obj.data[song].title.replace(/\//g, '') + "</td>" +
                                 "<td>" + minutes + ":" + (seconds < 10 ? '0' : '') + seconds +
                         "</td><td></td></tr>");
                     }
@@ -450,7 +484,6 @@ function webSocketConnect() {
                     break;
                 case 'state':
                     updatePlayIcon(obj.data.state);
-                    updateVolumeIcon(obj.data.volume);
 
                     if(JSON.stringify(obj) === JSON.stringify(last_state))
                         break;
@@ -463,6 +496,8 @@ function webSocketConnect() {
                     var elapsed_minutes = Math.floor(obj.data.elapsedTime / 60);
                     var elapsed_seconds = obj.data.elapsedTime - elapsed_minutes * 60;
 
+                    volume = obj.data.volume;
+                    $('#volume-icon').text(obj.data.volume);
                     $('#volumeslider').slider(obj.data.volume);
                     var progress = Math.floor(100*obj.data.elapsedTime/obj.data.totalTime);
                     $('#progressbar').slider(progress);
@@ -545,7 +580,7 @@ function webSocketConnect() {
 
 					$('#btnlove').removeClass("active");
 
-                    $('#currenttrack').text(" " + obj.data.title);
+                    $('#currenttrack').text(" " + obj.data.title.replace(/\//g, ''));
                     var notification = "<strong><h4>" + obj.data.title + "</h4></strong>";
 
                     if(obj.data.album) {
@@ -728,20 +763,33 @@ function clickLove() {
 }
 
 $('#btnrandom').on('click', function (e) {
+    $('.top-right').notify({
+        message:{text:"random " + ($(this).hasClass('active') ? "off" : "on")}
+    }).show();
     socket.send("MPD_API_TOGGLE_RANDOM," + ($(this).hasClass('active') ? 0 : 1));
-
 });
 $('#btnconsume').on('click', function (e) {
+    $('.top-right').notify({
+        message:{text:"consume " + ($(this).hasClass('active') ? "off" : "on")}
+    }).show();
     socket.send("MPD_API_TOGGLE_CONSUME," + ($(this).hasClass('active') ? 0 : 1));
-
 });
 $('#btnsingle').on('click', function (e) {
+    $('.top-right').notify({
+        message:{text:"single " + ($(this).hasClass('active') ? "off" : "on")}
+    }).show();
     socket.send("MPD_API_TOGGLE_SINGLE," + ($(this).hasClass('active') ? 0 : 1));
 });
 $('#btncrossfade').on('click', function(e) {
+    $('.top-right').notify({
+        message:{text:"crossfade " + ($(this).hasClass('active') ? "off" : "on")}
+    }).show();
     socket.send("MPD_API_TOGGLE_CROSSFADE," + ($(this).hasClass('active') ? 0 : 1));
 });
 $('#btnrepeat').on('click', function (e) {
+    $('.top-right').notify({
+        message:{text:"repeat " + ($(this).hasClass('active') ? "off" : "on")}
+    }).show();
     socket.send("MPD_API_TOGGLE_REPEAT," + ($(this).hasClass('active') ? 0 : 1));
 });
 
